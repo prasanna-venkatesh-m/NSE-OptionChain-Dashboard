@@ -1,126 +1,118 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getOptionChainData } from "../services/getOptionChain.api";
 import OptionChainTable from "../components/common/OptionChainTableComponent";
+import { useOptionChain } from "../context/DataContext";
 
 export default function Home() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [countdown, setCountdown] = useState(35);
+  const { data, loading, countdown, totals, pcr } = useOptionChain();
 
-  const updateData = async () => {
-    try {
-      const result = await getOptionChainData();
-      setData(result);
-      setLoading(false);
-      setCountdown(35); // Reset timer after successful fetch
-    } catch (err) {
-      console.error("Fetch failed", err);
-    }
-  };
-
-  useEffect(() => {
-    // 1. Initial fetch on load
-    updateData();
-
-    // 2. Set up the 35-second interval
-    const timer = setInterval(() => {
-      updateData();
-    }, 35000);
-
-    // 3. Set up a 1-second visual countdown
-    const countdownTimer = setInterval(() => {
-      setCountdown((prev) => (prev > 0 ? prev - 1 : 35));
-    }, 1000);
-
-    // Clean up timers if the user leaves the page
-    return () => {
-      clearInterval(timer);
-      clearInterval(countdownTimer);
-    };
-  }, []);
-
-  if (loading) return <div className="p-10 text-white">Initializing NSE Feed...</div>;
+  // Show a sleek loading state that matches your dark theme
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center space-y-4">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+        <p className="animate-pulse font-mono text-sm tracking-widest text-slate-400">
+          ESTABLISHING NSE DATA STREAM...
+        </p>
+      </div>
+    );
+  }
 
   const optionData = data?.filtered?.data || [];
 
-  // Calculate all totals inside your component
-  const totals = optionData.reduce((acc: any, curr: any) => {
-    acc.ceOI += curr.CE?.openInterest || 0;
-    acc.peOI += curr.PE?.openInterest || 0;
-    acc.ceVol += curr.CE?.totalTradedVolume || 0;
-    acc.peVol += curr.PE?.totalTradedVolume || 0;
-    return acc;
-  }, { ceOI: 0, peOI: 0, ceVol: 0, peVol: 0 });
-
-  const pcr = totals.ceOI > 0 ? (totals.peOI / totals.ceOI).toFixed(2) : "0.00";
-
-  // --- JSX UI SECTION ---
   return (
-    <main className="min-h-screen bg-black p-6 text-white">
-      {/* Header with Timer */}
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">
-          NIFTY REAL-TIME
-        </h1>
-        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-1.5 rounded-full">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-          </span>
-          <span className="text-xs font-mono text-zinc-400">REFRESH IN {countdown}S</span>
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-
-        {/* Call Side Summary */}
-        <div className="bg-zinc-900 border-t-2 border-green-500 p-5 rounded-xl shadow-lg">
-          <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">Calls (CE) Totals</p>
-          <div className="mt-3 space-y-1">
-            <div className="flex justify-between">
-              <span className="text-zinc-400 text-sm">OI:</span>
-              <span className="text-xl font-mono text-green-400 font-bold">{totals.ceOI.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between border-t border-zinc-800 pt-1">
-              <span className="text-zinc-400 text-sm">Vol:</span>
-              <span className="text-lg font-mono text-zinc-300">{totals.ceVol.toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Market Sentiment (PCR) */}
-        <div className="bg-zinc-900 border-t-2 border-yellow-500 p-5 rounded-xl shadow-lg flex flex-col items-center justify-center">
-          <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest mb-1">Sentiment (PCR)</p>
-          <span className={`text-5xl font-black font-mono ${Number(pcr) > 1 ? 'text-green-500' : 'text-red-500'}`}>
-            {pcr}
-          </span>
-          <p className="text-[10px] text-zinc-500 mt-2 tracking-tighter">
-            {Number(pcr) > 1 ? "PE WRITING > CE WRITING (BULLISH)" : "CE WRITING > PE WRITING (BEARISH)"}
+    <main className="min-h-screen bg-black text-white">
+      {/* --- Header Section --- */}
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="bg-gradient-to-r from-white to-gray-500 bg-clip-text text-3xl font-extrabold tracking-tighter text-transparent uppercase">
+            Nifty Real-Time
+          </h1>
+          <p className="text-[10px] font-medium tracking-[0.2em] text-zinc-500 uppercase">
+            Live Option Chain Metrics
           </p>
         </div>
 
-        {/* Put Side Summary */}
-        <div className="bg-zinc-900 border-t-2 border-red-500 p-5 rounded-xl shadow-lg">
-          <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">Puts (PE) Totals</p>
-          <div className="mt-3 space-y-1">
-            <div className="flex justify-between">
-              <span className="text-zinc-400 text-sm">OI:</span>
-              <span className="text-xl font-mono text-red-400 font-bold">{totals.peOI.toLocaleString()}</span>
+        {/* Sync Indicator */}
+        <div className="flex items-center gap-3 rounded-full border border-zinc-800 bg-zinc-900/50 px-4 py-2 backdrop-blur-sm">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+          </span>
+          <span className="font-mono text-[10px] tracking-widest text-zinc-400">
+            SYNC IN {countdown}S
+          </span>
+        </div>
+      </div>
+
+      {/* --- Summary Cards --- */}
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+        
+        {/* Call Side Summary */}
+        <div className="rounded-xl border-t-2 border-emerald-500 bg-zinc-900 p-5 shadow-2xl transition-transform hover:scale-[1.02]">
+          <p className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
+            Total Calls (CE)
+          </p>
+          <div className="mt-4 space-y-2">
+            <div className="flex justify-between items-end">
+              <span className="text-xs text-zinc-400">Open Interest</span>
+              <span className="font-mono text-2xl font-bold text-emerald-400">
+                {totals.ceOI.toLocaleString()}
+              </span>
             </div>
-            <div className="flex justify-between border-t border-zinc-800 pt-1">
-              <span className="text-zinc-400 text-sm">Vol:</span>
-              <span className="text-lg font-mono text-zinc-300">{totals.peVol.toLocaleString()}</span>
+            <div className="flex justify-between items-end border-t border-zinc-800 pt-2">
+              <span className="text-xs text-zinc-400">Volume</span>
+              <span className="font-mono text-lg text-zinc-300">
+                {totals.ceVol.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* PCR Sentiment Card */}
+        <div className="flex flex-col items-center justify-center rounded-xl border-t-2 border-blue-500 bg-zinc-900 p-5 shadow-2xl">
+          <p className="mb-1 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
+            Sentiment (PCR)
+          </p>
+          <span className={`font-mono text-6xl font-black tracking-tighter ${
+            Number(pcr) > 1 ? "text-emerald-500" : "text-rose-500"
+          }`}>
+            {pcr}
+          </span>
+          <div className={`mt-2 rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-tighter ${
+            Number(pcr) > 1 ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
+          }`}>
+            {Number(pcr) > 1 ? "Bullish (PE Writing)" : "Bearish (CE Writing)"}
+          </div>
+        </div>
+
+        {/* Put Side Summary */}
+        <div className="rounded-xl border-t-2 border-rose-500 bg-zinc-900 p-5 shadow-2xl transition-transform hover:scale-[1.02]">
+          <p className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
+            Total Puts (PE)
+          </p>
+          <div className="mt-4 space-y-2">
+            <div className="flex justify-between items-end">
+              <span className="text-xs text-zinc-400">Open Interest</span>
+              <span className="font-mono text-2xl font-bold text-rose-400">
+                {totals.peOI.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between items-end border-t border-zinc-800 pt-2">
+              <span className="text-xs text-zinc-400">Volume</span>
+              <span className="font-mono text-lg text-zinc-300">
+                {totals.peVol.toLocaleString()}
+              </span>
             </div>
           </div>
         </div>
 
       </div>
 
-      {/* Your Table Component */}
-      <OptionChainTable data={optionData} />
+      {/* --- Main Table Section --- */}
+      <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30">
+        <OptionChainTable data={optionData} />
+      </div>
     </main>
   );
 }
