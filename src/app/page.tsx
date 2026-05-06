@@ -79,7 +79,7 @@ export default function Home() {
           }`}>
             {pcr}
           </span>
-          <div className={`mt-2 rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-tighter ${
+          <div className={`mt-2 rounded px-2 py-0.5 text-[12px] font-bold uppercase tracking-tighter ${
             Number(pcr) > 1 ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
           }`}>
             {Number(pcr) > 1 ? "Bullish (PE Writing)" : "Bearish (CE Writing)"}
