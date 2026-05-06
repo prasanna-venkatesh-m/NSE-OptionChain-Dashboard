@@ -16,42 +16,44 @@ import {
 export default function ChartPage() {
     const { data, loading, countdown } = useOptionChain();
 
-    const [startStrike, setStartStrike] = useState<number>(0);
-    const [endStrike, setEndStrike] = useState<number>(0);
+    // New State Management
+    const [centerStrike, setCenterStrike] = useState<number>(0);
+    const [strikeOffset, setStrikeOffset] = useState<number>(500); // The +/- range
 
     // 1. Extract all available strikes
     const strikePrices = useMemo(() => {
         return data?.filtered?.data?.map((item: any) => item.strikePrice) || [];
-    }, [data]);
+    }, [data?.filtered?.data]);
 
-    // 2. AUTO-INITIALIZE: This only runs once when data first arrives
+    // 2. AUTO-INITIALIZE: Pick the middle strike as default center
     useEffect(() => {
-        if (strikePrices.length > 0 && startStrike === 0) {
-            const mid = Math.floor(strikePrices.length / 2);
-            setStartStrike(strikePrices[mid - 8]); // Show 8 strikes below
-            setEndStrike(strikePrices[mid + 8]);   // Show 8 strikes above
+        if (strikePrices.length > 0 && centerStrike === 0) {
+            const midIndex = Math.floor(strikePrices.length / 2);
+            setCenterStrike(strikePrices[midIndex]);
         }
-    }, [strikePrices, startStrike]);
+    }, [strikePrices, centerStrike]);
 
-    // 3. THE REFRESH ENGINE: This recalculates the chart data 
-    // whenever 'data', 'startStrike', or 'endStrike' changes.
+    // 3. REFRESH ENGINE: Calculates bounds based on Center + Offset
     const filteredChartData = useMemo(() => {
-        if (!data?.filtered?.data) return [];
+        const rawData = data?.filtered?.data;
+        if (!rawData || rawData.length === 0) return [];
 
-        return data.filtered.data
+        const lowerBound = centerStrike - strikeOffset;
+        const upperBound = centerStrike + strikeOffset;
+
+        return rawData
             .filter((item: any) =>
-                item.strikePrice >= startStrike &&
-                item.strikePrice <= endStrike
+                item.strikePrice >= lowerBound &&
+                item.strikePrice <= upperBound
             )
             .map((item: any) => ({
                 strike: item.strikePrice,
                 callOI: item.CE?.openInterest || 0,
                 putOI: item.PE?.openInterest || 0,
-                // Adding "Change in OI" as a bonus metric for tooltips
                 callChg: item.CE?.changeinOpenInterest || 0,
                 putChg: item.PE?.changeinOpenInterest || 0,
             }));
-    }, [data, startStrike, endStrike]); // These dependencies are the key!
+    }, [data, centerStrike, strikeOffset]);
 
     if (loading) return <div className="p-10 text-white font-mono text-center">SYNCING WITH NSE...</div>;
 
@@ -59,40 +61,43 @@ export default function ChartPage() {
         <main className="min-h-screen bg-black p-6 text-white">
             {/* Control Panel */}
             <div className="mb-8 flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 backdrop-blur-md">
-                <div className="flex flex-wrap items-center gap-4">
+                <div className="flex flex-wrap items-center gap-6">
+
+                    {/* Center Strike Selector */}
                     <div className="space-y-1">
-                        <span className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">Range Start</span>
+                        <span className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">Center Strike</span>
                         <select
-                            value={startStrike}
-                            onChange={(e) => setStartStrike(Number(e.target.value))}
-                            className="block w-32 rounded-lg border border-zinc-700 bg-black p-2 text-sm outline-none focus:ring-1 ring-blue-500"
+                            value={centerStrike}
+                            onChange={(e) => setCenterStrike(Number(e.target.value))}
+                            className="block w-40 rounded-lg border border-zinc-700 bg-black p-2 text-sm outline-none focus:ring-1 ring-blue-500"
                         >
                             {strikePrices.map((s: number) => (
-                                <option key={s} value={s}>
-                                    {s}
-                                </option>
+                                <option key={s} value={s}>{s}</option>
                             ))}
                         </select>
                     </div>
 
-                    <div className="mt-4 text-zinc-600">→</div>
-
+                    {/* Range Offset Selector */}
                     <div className="space-y-1">
-                        <span className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">Range End</span>
+                        <span className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">Range (±)</span>
                         <select
-                            value={endStrike}
-                            onChange={(e) => setEndStrike(Number(e.target.value))}
+                            value={strikeOffset}
+                            onChange={(e) => setStrikeOffset(Number(e.target.value))}
                             className="block w-32 rounded-lg border border-zinc-700 bg-black p-2 text-sm outline-none focus:ring-1 ring-blue-500"
                         >
-                            {strikePrices
-                                .filter((s: number) => s >= startStrike)
-                                .map((s: number) => (
-                                    <option key={s} value={s}>
-                                        {s}
-                                    </option>
-                                ))
-                            }
+                            {[100, 200, 300, 400, 500, 700, 1000].map((range) => (
+                                <option key={range} value={range}>{range}</option>
+                            ))}
                         </select>
+                    </div>
+
+                    {/* Displaying the calculated window */}
+                    <div className="hidden md:block pb-2">
+                        <p className="text-xs text-zinc-500 italic">
+                            Viewing: <span className="text-blue-400">{centerStrike - strikeOffset}</span>
+                            <span className="mx-2 text-zinc-700">—</span>
+                            <span className="text-emerald-400">{centerStrike + strikeOffset}</span>
+                        </p>
                     </div>
                 </div>
 
@@ -112,8 +117,15 @@ export default function ChartPage() {
 
             {/* Chart Section */}
             <div className="h-[600px] w-full rounded-3xl border border-zinc-800 bg-zinc-900/10 p-4 shadow-inner">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={filteredChartData}>
+                <ResponsiveContainer width="100%" height="100%" key={data?.records?.timestamp || 'initial'}>
+                    <BarChart
+                        data={filteredChartData}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                        /* 1. This creates the gap between the different strike price groups */
+                        barCategoryGap="20%"
+                        /* 2. This creates a tiny sliver of space between the Call and Put bars themselves */
+                        barGap={2}
+                    >
                         <CartesianGrid strokeDasharray="3 3" stroke="#18181b" vertical={false} />
                         <XAxis
                             dataKey="strike"
@@ -131,27 +143,40 @@ export default function ChartPage() {
                             tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`}
                         />
                         <Tooltip
-                            cursor={{ fill: '#ffffff', opacity: 0.03 }}
-                            contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '12px' }}
-                            itemStyle={{ fontSize: '12px' }}
+                            cursor={{ fill: '#ffffff', opacity: 0.05 }}
+                            contentStyle={{
+                                backgroundColor: '#09090b',
+                                border: '1px solid #27272a',
+                                borderRadius: '12px',
+                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
+                            }}
+                            itemStyle={{ fontSize: '12px', padding: '2px 0' }}
                         />
-                        <Legend verticalAlign="top" align="center" height={40} />
+                        <Legend
+                            verticalAlign="top"
+                            align="right"
+                            height={50}
+                            iconType="circle"
+                            wrapperStyle={{ paddingTop: '10px', paddingRight: '20px' }}
+                        />
 
+                        {/* CALL OI Bar */}
                         <Bar
                             dataKey="callOI"
                             name="CALL OI"
                             fill="#f43f5e"
-                            radius={[4, 4, 0, 0]}
-                            barSize={30}
-                            animationDuration={500} // Smooth transition on refresh
+                            // radius={[4, 4, 0, 0]}
+                            // Removing hardcoded barSize allows barCategoryGap to work dynamically
+                            animationDuration={800}
                         />
+
+                        {/* PUT OI Bar */}
                         <Bar
                             dataKey="putOI"
                             name="PUT OI"
                             fill="#10b981"
-                            radius={[4, 4, 0, 0]}
-                            barSize={30}
-                            animationDuration={500}
+                            // radius={[4, 4, 0, 0]}
+                            animationDuration={800}
                         />
                     </BarChart>
                 </ResponsiveContainer>
