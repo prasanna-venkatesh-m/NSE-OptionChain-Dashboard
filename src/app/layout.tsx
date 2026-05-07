@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { OptionChainProvider } from "../context/DataContext";
+import NavbarControls from "../components/navbar/NavbarControls";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -56,6 +57,8 @@ export default function RootLayout({
                   Chart
                 </Link>
               </nav>
+
+              <NavbarControls />
             </div>
 
             {/* Right Side Status (Optional Detail) */}
