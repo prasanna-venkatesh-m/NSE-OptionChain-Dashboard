@@ -85,7 +85,7 @@ export default function ChartPage() {
                             onChange={(e) => setStrikeOffset(Number(e.target.value))}
                             className="block w-32 rounded-lg border border-zinc-700 bg-black p-2 text-sm outline-none focus:ring-1 ring-blue-500"
                         >
-                            {[100, 200, 300, 400, 500, 700, 1000].map((range) => (
+                            {[100, 200, 300, 400, 500,600, 700,800,900, 1000,1500,2000,2500,3000,3500,4000,4500,5000].map((range) => (
                                 <option key={range} value={range}>{range}</option>
                             ))}
                         </select>

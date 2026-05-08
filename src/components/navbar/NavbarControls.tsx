@@ -5,7 +5,7 @@ import { useOptionChain } from "@/src/context/DataContext";
 export default function NavbarControls() {
   const { symbol, setSymbol, expiry, setExpiry } = useOptionChain();
 
-  const symbols = ["NIFTY", "BANKNIFTY", "SENSEX", "FINNIFTY"];
+  const symbols = ["NIFTY", "BANKNIFTY", "NIFTYNXT50", "FINNIFTY", "MIDCPNIFTY"];
 
   // Helper to format Date object or string to DD-MMM-YYYY
   const formatDateForAPI = (dateString: string) => {
