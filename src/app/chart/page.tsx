@@ -11,14 +11,17 @@ import {
     Tooltip,
     Legend,
     ResponsiveContainer,
+    ReferenceLine,
+    Label,
 } from "recharts";
 
 export default function ChartPage() {
     const { data, loading, countdown } = useOptionChain();
 
+    const spotPrice = data?.records?.underlyingValue || 0;
     // New State Management
     const [centerStrike, setCenterStrike] = useState<number>(0);
-    const [strikeOffset, setStrikeOffset] = useState<number>(500); // The +/- range
+    const [strikeOffset, setStrikeOffset] = useState<number>(1000); // The +/- range
 
     // 1. Extract all available strikes
     const strikePrices = useMemo(() => {
@@ -27,11 +30,22 @@ export default function ChartPage() {
 
     // 2. AUTO-INITIALIZE: Pick the middle strike as default center
     useEffect(() => {
-        if (strikePrices.length > 0 && centerStrike === 0) {
-            const midIndex = Math.floor(strikePrices.length / 2);
-            setCenterStrike(strikePrices[midIndex]);
+        // Only set if we have strikes, a spot price, and centerStrike hasn't been set yet
+        if (strikePrices.length > 0 && spotPrice > 0 && centerStrike === 0) {
+            // const initialNearest = strikePrices.reduce((prev, curr) =>
+            //     Math.abs(curr - spotPrice) < Math.abs(prev - spotPrice) ? curr : prev
+            // );
+            setCenterStrike(spotPrice);
         }
-    }, [strikePrices, centerStrike]);
+    }, [strikePrices, spotPrice, centerStrike]);
+
+    const nearestStrike = useMemo(() => {
+        if (!strikePrices.length || !spotPrice) return null;
+
+        return strikePrices.reduce((prev: number, curr: number) =>
+            Math.abs(curr - spotPrice) < Math.abs(prev - spotPrice) ? curr : prev
+        );
+    }, [strikePrices, spotPrice]);
 
     // 3. REFRESH ENGINE: Calculates bounds based on Center + Offset
     const filteredChartData = useMemo(() => {
@@ -85,7 +99,7 @@ export default function ChartPage() {
                             onChange={(e) => setStrikeOffset(Number(e.target.value))}
                             className="block w-32 rounded-lg border border-zinc-700 bg-black p-2 text-sm outline-none focus:ring-1 ring-blue-500"
                         >
-                            {[100, 200, 300, 400, 500,600, 700,800,900, 1000,1500,2000,2500,3000,3500,4000,4500,5000].map((range) => (
+                            {[100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000].map((range) => (
                                 <option key={range} value={range}>{range}</option>
                             ))}
                         </select>
@@ -178,6 +192,23 @@ export default function ChartPage() {
                             // radius={[4, 4, 0, 0]}
                             animationDuration={800}
                         />
+
+                        {nearestStrike && (
+                            <ReferenceLine
+                                x={nearestStrike} // Changed from spotPrice to nearestStrike
+                                stroke="#60a5fa"
+                                strokeDasharray="5 5"
+                                strokeWidth={2}
+                                label={{
+                                    value: `SPOT: ${spotPrice}`, // We still show the actual spot price in the label
+                                    position: "top",
+                                    fill: "#60a5fa",
+                                    fontSize: 12,
+                                    fontWeight: "bold",
+                                    dy: -15
+                                }}
+                            />
+                        )}
                     </BarChart>
                 </ResponsiveContainer>
             </div>
