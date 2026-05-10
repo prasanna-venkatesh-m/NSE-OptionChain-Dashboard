@@ -1,4 +1,3 @@
-// context/DataContext.tsx
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
@@ -18,17 +17,31 @@ interface OptionChainContextType {
 
 const OptionChainContext = createContext<OptionChainContextType | undefined>(undefined);
 
+// Helper function to check if Indian Market is currently open
+const isMarketOpen = () => {
+  const now = new Date();
+  // Convert current time to IST
+  const istTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  
+  const day = istTime.getDay(); // 0 = Sunday, 6 = Saturday
+  const hours = istTime.getHours();
+  
+  const isWeekday = day > 0 && day < 6;
+  const isWorkingHours = hours >= 9 && hours < 16;
+
+  return isWeekday && isWorkingHours;
+};
+
 export function OptionChainProvider({ children }: { children: React.ReactNode }) {
   const [symbol, setSymbol] = useState("NIFTY");
-  // Default expiry to a formatted string (match your API format)
-  const [expiry, setExpiry] = useState("12-May-2026"); 
+  const [expiry, setExpiry] = useState("12-May-2026");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState(35);
 
   const updateData = async () => {
     try {
-      setLoading(true); // Show loader when symbol/date changes
+      setLoading(true);
       const result = await getOptionChainData(symbol, expiry);
       setData(result);
       setLoading(false);
@@ -39,17 +52,33 @@ export function OptionChainProvider({ children }: { children: React.ReactNode })
     }
   };
 
-  // Re-run whenever symbol or expiry changes
+  // Effect for initial load and polling logic
   useEffect(() => {
+    // 1. Initial Fetch: Always run once on mount to get the last available data
     updateData();
-    const timer = setInterval(updateData, 35000);
+
+    // 2. Set up the 35s polling interval
+    const timer = setInterval(() => {
+      if (isMarketOpen()) {
+        updateData();
+      } else {
+        console.log("Market is closed. API refresh skipped.");
+      }
+    }, 35000);
+
     return () => clearInterval(timer);
   }, [symbol, expiry]);
 
+  // Effect for the visual countdown timer
   useEffect(() => {
     const countdownTimer = setInterval(() => {
-      setCountdown((prev) => (prev > 0 ? prev - 1 : 35));
+      setCountdown((prev) => {
+        // If market is closed, don't tick down; keep it at the reset value
+        if (!isMarketOpen()) return 35;
+        return prev > 0 ? prev - 1 : 35;
+      });
     }, 1000);
+    
     return () => clearInterval(countdownTimer);
   }, []);
 
@@ -70,8 +99,17 @@ export function OptionChainProvider({ children }: { children: React.ReactNode })
   }, [data]);
 
   return (
-    <OptionChainContext.Provider 
-      value={{ data, loading, countdown, symbol, expiry, setSymbol, setExpiry, ...processedMetrics }}
+    <OptionChainContext.Provider
+      value={{
+        data,
+        loading,
+        countdown,
+        symbol,
+        expiry,
+        setSymbol,
+        setExpiry,
+        ...processedMetrics,
+      }}
     >
       {children}
     </OptionChainContext.Provider>
